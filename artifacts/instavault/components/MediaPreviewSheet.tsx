@@ -18,21 +18,18 @@ export function MediaPreviewSheet({ visible, onClose, media, onDownload, default
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const [selectedFormat, setSelectedFormat] = useState<string>(defaultQuality);
-  
-  if (!media) return null;
-  
-  const formats = media.formats || (media.items?.[0]?.formats) || [];
-  
-  // Initialize selected format if not found
+
+  const formats = media?.formats || media?.items?.[0]?.formats || [];
+
+  // Must be before any early return — hooks cannot be conditional
   React.useEffect(() => {
     if (visible && formats.length > 0) {
-      if (!formats.find(f => f.formatId === defaultQuality)) {
-        setSelectedFormat(formats[0].formatId);
-      } else {
-        setSelectedFormat(defaultQuality);
-      }
+      const match = formats.find(f => f.formatId === defaultQuality);
+      setSelectedFormat(match ? defaultQuality : formats[0].formatId);
     }
   }, [visible, formats, defaultQuality]);
+
+  if (!media) return null;
   
   const handleDownload = () => {
     onDownload(selectedFormat);
