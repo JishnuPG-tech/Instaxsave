@@ -2,14 +2,16 @@ openapi: 3.1.0
 info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 0.2.0
+  description: InstaVault API — Instagram media resolver and downloader
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: media
+    description: Instagram media operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,110 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /resolve:
+    post:
+      operationId: resolveMedia
+      tags: [media]
+      summary: Resolve Instagram URL
+      description: Extract media metadata and available formats from an Instagram URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveRequest"
+      responses:
+        "200":
+          description: Media resolved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaInfo"
+        "400":
+          description: Invalid request or URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Private account or age-restricted content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Post not found or deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /download:
+    get:
+      operationId: downloadMedia
+      tags: [media]
+      summary: Download media file
+      description: Stream or redirect to the actual media file
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Instagram URL of the media to download
+        - name: formatId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Format identifier from the resolve response (e.g. "best", "720p", "audio")
+        - name: index
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+          description: For carousels, which item index to download (0-based)
+      responses:
+        "200":
+          description: Media file stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +137,171 @@ components:
       properties:
         status:
           type: string
+        ytDlpVersion:
+          type: string
+          nullable: true
       required:
         - status
 
+    ResolveRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          description: Instagram URL (post, reel, story, highlight, profile, etc.)
+      required:
+        - url
+
+    MediaType:
+      type: string
+      enum:
+        - post
+        - reel
+        - story
+        - highlight
+        - carousel
+        - profile_pic
+        - igtv
+      description: Type of Instagram media
+
+    MediaFormat:
+      type: object
+      properties:
+        formatId:
+          type: string
+          description: yt-dlp format selector string (passed verbatim to --format)
+        label:
+          type: string
+          description: Human-readable label (e.g. "Best (1080p)", "720p", "Audio only")
+        ext:
+          type: string
+          description: File extension (mp4, jpg, mp3, etc.)
+        vcodec:
+          type: string
+          nullable: true
+          description: Video codec (null or "none" for audio-only)
+        acodec:
+          type: string
+          nullable: true
+          description: Audio codec
+        height:
+          type: number
+          nullable: true
+          description: Video height in pixels
+        width:
+          type: number
+          nullable: true
+          description: Video width in pixels
+        tbr:
+          type: number
+          nullable: true
+          description: Total bitrate in kbps
+        abr:
+          type: number
+          nullable: true
+          description: Audio bitrate in kbps
+        filesize:
+          type: number
+          nullable: true
+          description: Approximate file size in bytes
+      required:
+        - formatId
+        - label
+        - ext
+
+    CarouselItem:
+      type: object
+      properties:
+        index:
+          type: number
+          description: Zero-based index in the carousel
+        type:
+          type: string
+          enum: [photo, video]
+          description: Media type for this carousel item
+        thumbnailUrl:
+          type: string
+          nullable: true
+          description: Thumbnail URL for this item
+        formats:
+          type: array
+          items:
+            $ref: "#/components/schemas/MediaFormat"
+          description: Available download formats for this item
+      required:
+        - index
+        - type
+        - formats
+
+    MediaInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Instagram shortcode or media ID
+        type:
+          $ref: "#/components/schemas/MediaType"
+        author:
+          type: string
+          nullable: true
+          description: Instagram username of the author
+        authorDisplayName:
+          type: string
+          nullable: true
+          description: Display name of the author
+        authorAvatarUrl:
+          type: string
+          nullable: true
+          description: URL of the author's profile picture
+        thumbnailUrl:
+          type: string
+          nullable: true
+          description: Thumbnail or preview image URL
+        caption:
+          type: string
+          nullable: true
+          description: Post caption text
+        uploadedAt:
+          type: string
+          nullable: true
+          description: Upload timestamp in ISO 8601 format
+        durationSeconds:
+          type: number
+          nullable: true
+          description: Video duration in seconds (null for photos)
+        formats:
+          type: array
+          items:
+            $ref: "#/components/schemas/MediaFormat"
+          nullable: true
+          description: Available formats for single-media posts (null for carousels)
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CarouselItem"
+          nullable: true
+          description: Individual items for carousel posts (null for single-media)
+      required:
+        - id
+        - type
+
+    ErrorDetail:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+        message:
+          type: string
+          description: Human-readable error message
+      required:
+        - code
+        - message
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorDetail"
+      required:
+        - error

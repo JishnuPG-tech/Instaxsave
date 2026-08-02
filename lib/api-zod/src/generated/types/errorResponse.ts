@@ -5,8 +5,8 @@
  * InstaVault API — Instagram media resolver and downloader
  * OpenAPI spec version: 0.2.0
  */
+import type { ErrorDetail } from './errorDetail';
 
-export interface HealthStatus {
-  status: string;
-  ytDlpVersion?: string | null;
+export interface ErrorResponse {
+  error: ErrorDetail;
 }

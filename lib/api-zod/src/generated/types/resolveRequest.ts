@@ -6,7 +6,7 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface HealthStatus {
-  status: string;
-  ytDlpVersion?: string | null;
+export interface ResolveRequest {
+  /** Instagram URL (post, reel, story, highlight, profile, etc.) */
+  url: string;
 }

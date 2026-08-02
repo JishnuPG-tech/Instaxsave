@@ -6,7 +6,9 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface HealthStatus {
-  status: string;
-  ytDlpVersion?: string | null;
+export interface ErrorDetail {
+  /** Machine-readable error code */
+  code: string;
+  /** Human-readable error message */
+  message: string;
 }

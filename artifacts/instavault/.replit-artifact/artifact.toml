@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/"
+title = "InstaVault"
+description = "Android app to download Instagram media (posts, reels, stories, carousels, highlights) by pasting a URL. Uses a backend API powered by yt-dlp for media extraction. Built with Expo/React Native, Zustand for download queue state, expo-sqlite for download history, and expo-media-library to save to device gallery."
+version = "1.0.0"
+id = "artifacts/instavault"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/" ]
+localPort = 23777
+
+[services.development]
+run = "pnpm --filter @workspace/instavault run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/instavault", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/instavault", "run", "serve" ]
+
+[services.env]
+PORT = "23777"
+BASE_PATH = "/"
