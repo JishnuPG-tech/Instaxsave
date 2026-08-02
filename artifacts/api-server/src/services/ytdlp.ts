@@ -291,13 +291,21 @@ export async function resolveUrl(url: string): Promise<MediaInfo> {
     stdout = result.stdout;
     stderr = result.stderr;
   } catch (err: unknown) {
-    const execaErr = err as { stderr?: string; message?: string };
-    const stderrText = execaErr?.stderr ?? execaErr?.message ?? "";
-    logger.warn({ url, stderr: stderrText }, "yt-dlp exited with error");
-    const classified = classifyStderr(stderrText);
+    const execaErr = err as { stderr?: string; message?: string; code?: string };
+    const stderrText = execaErr?.stderr ?? "";
+    const msgText = execaErr?.message ?? "";
+    logger.warn({ url, stderr: stderrText, message: msgText }, "yt-dlp exited with error");
+    // Binary not found
+    if (execaErr?.code === "ENOENT") {
+      throw new YtDlpError(
+        `yt-dlp binary not found at "${bin}". Install it and set YTDLP_PATH.`,
+        "BINARY_NOT_FOUND",
+      );
+    }
+    const classified = classifyStderr(stderrText || msgText);
     if (classified) throw classified;
     throw new YtDlpError(
-      `yt-dlp failed: ${stderrText.slice(0, 300)}`,
+      `yt-dlp failed: ${(stderrText || msgText).slice(0, 300)}`,
       "YTDLP_ERROR",
     );
   }
